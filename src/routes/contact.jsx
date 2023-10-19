@@ -1,9 +1,15 @@
-import { useEffect, useRef } from "react";
-import { Form, useFetcher, useLoaderData, useLocation } from "react-router-dom";
-import { getContacts, createContact } from "../contact";
+import { Form, useLoaderData, useFetcher } from "react-router-dom";
+import { getContact } from "../contact";
 
-export function loader({ params }) {
-  return getContacts(params.contactId);
+export async function loader({ params }) {
+  const contact = await getContact(params.contactId);
+  if (!contact) {
+    throw new Response("", {
+      status: 404,
+      statusText: "Not Found",
+    });
+  }
+  return { contact };
 }
 
 export async function action({ request, params }) {
@@ -13,20 +19,17 @@ export async function action({ request, params }) {
   });
 }
 
-export default function ContactRoute() {
-  const contact = useLoaderData();
-  return <Contact contact={contact} />;
-}
+export default function Contact() {
+  const { contact } = useLoaderData();
 
-export function Contact({ contact }) {
-  const location = useLocation();
-  const headingRef = useRef();
-
-  useEffect(() => {
-    if (location.state?.takeFocus) {
-      headingRef.current?.focus();
-    }
-  }, [location]);
+  // const contact = {
+  //   first: "Your",
+  //   last: "Name",
+  //   avatar: "https://placekitten.com/g/200/200",
+  //   twitter: "your_handle",
+  //   notes: "Some notes",
+  //   favorite: true,
+  // };
 
   return (
     <div id="contact">
@@ -35,7 +38,7 @@ export function Contact({ contact }) {
       </div>
 
       <div>
-        <h1 ref={headingRef} tabIndex="-1">
+        <h1>
           {contact.first || contact.last ? (
             <>
               {contact.first} {contact.last}
@@ -48,7 +51,11 @@ export function Contact({ contact }) {
 
         {contact.twitter && (
           <p>
-            <a target="_blank" href={`https://twitter.com/${contact.twitter}`}>
+            <a
+              target="_blank"
+              href={`https://twitter.com/${contact.twitter}`}
+              rel="noopener noreferrer"
+            >
               {contact.twitter}
             </a>
           </p>
@@ -78,12 +85,13 @@ export function Contact({ contact }) {
 }
 
 function Favorite({ contact }) {
+  // yes, this is a `let` for later
   const fetcher = useFetcher();
+
   let favorite = contact.favorite;
   if (fetcher.formData) {
-    favorite = fetcher.formData.get("favorite") === "true" ? true : false;
+    favorite = fetcher.formData.get("favorite") === "true";
   }
-
   return (
     <fetcher.Form method="post">
       <button
